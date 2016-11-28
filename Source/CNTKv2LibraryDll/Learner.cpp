@@ -27,6 +27,101 @@ using namespace std;
 
 namespace CNTK
 {
+    Learners::Learners(const std::vector<LearnerPtr>& learners) :
+        m_learners(learners),
+        m_isDistributed(false)
+    {
+        if (learners.empty())
+            InvalidArgument("Please specify learners.");
+
+        std::unordered_set<Parameter> learnerParameters;
+        for (const auto& learner : m_learners)
+        {
+            if (dynamic_pointer_cast<DistributedLearner>(learner) != nullptr)
+                m_isDistributed = true;
+
+            const auto& currentLearnerParameters = learner->Parameters();
+            for (const auto& parameter : currentLearnerParameters)
+            {
+                auto insertRetVal = learnerParameters.insert(parameter);
+                if (!insertRetVal.second)
+                    InvalidArgument("Parameter named %S is covered by 2 different learners", parameter.Name().c_str());
+            }
+        }
+
+        CheckDistributedLearners();
+    }
+
+    void Learners::CheckDistributedLearners()
+    {
+        for (const auto& learner : m_learners)
+        {
+            if (dynamic_pointer_cast<DistributedLearner>(learner) == nullptr)
+                InvalidArgument("Distributed and local learners cannot be used side by side.");
+        }
+    }
+
+    void Learners::GetLearnerGradients(LearnerPtr learner, const std::unordered_map<Parameter, NDArrayViewPtr>& allGradients, std::unordered_map<Parameter, NDArrayViewPtr>& learnerGradients)
+    {
+        const auto& learnerParameters = learner->Parameters();
+        for (const auto& parameter : learnerParameters)
+        {
+            auto value = allGradients.find(parameter);
+            if (value == allGradients.end())
+                LogicError("Learner contains parameter that does not exists in the model");
+
+            learnerGradients[parameter] = value->second;
+        }
+    }
+
+    bool Learners::Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t sampleInMinibatch)
+    {
+        bool anyUpdatesPerformed = false;
+        for (auto learner : m_learners)
+        {
+            std::unordered_map<Parameter, NDArrayViewPtr> learnerGradients;
+            GetLearnerGradients(learner, gradientValues, learnerGradients);
+            anyUpdatesPerformed |= learner->Update(learnerGradients, sampleInMinibatch);
+        }
+        return anyUpdatesPerformed;
+    }
+
+    bool Learners::Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, MinibatchInfo& minibatch)
+    {
+        bool anyUpdatesPerformed = false;
+        for (auto l : m_learners)
+        {
+            auto learner = dynamic_pointer_cast<DistributedLearner>(l);
+            std::unordered_map<Parameter, NDArrayViewPtr> learnerGradients;
+            GetLearnerGradients(learner, gradientValues, learnerGradients);
+            anyUpdatesPerformed |= learner->Update(learnerGradients, minibatch);
+        }
+        return anyUpdatesPerformed;
+    }
+
+    Dictionary Learners::CreateCheckpoint()
+    {
+        std::vector<DictionaryValue> innerLearnersState;
+        for (auto l : m_learners)
+            innerLearnersState.push_back(l->CreateCheckpoint());
+
+        Dictionary result;
+        result[L"inner"] = innerLearnersState;
+        return result;
+    }
+
+    void Learners::RestoreFromCheckpoint(const Dictionary& checkpoint)
+    {
+        std::vector<DictionaryValue> innerLearnersState = checkpoint[L"inner"].Value<std::vector<DictionaryValue>>();
+        if (m_learners.size() != innerLearnersState.size())
+            RuntimeError("Number of learners does not match the checkpoint state.");
+
+        for (size_t i = 0; i < m_learners.size(); ++i)
+        {
+            m_learners[i]->RestoreFromCheckpoint(innerLearnersState[i].Value<Dictionary>());
+        }
+    }
+
     template <typename ElementType>
     /*static*/ shared_ptr<const Matrix<ElementType>> LearnerBase::GetMatrix(const NDArrayViewPtr& arrayView)
     {
@@ -222,7 +317,7 @@ namespace CNTK
         }
     }
 
-    /*virtual*/ bool LearnerBase::Update(const unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount) /*override*/
+    /*virtual*/ bool LearnerBase::Update(unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount) /*override*/
     {
         if (LearningRate(trainingSampleCount) == 0.0)
         {
@@ -268,7 +363,7 @@ namespace CNTK
                 LogicError("%ls has NaNs in parameter values after parameter update.", parameter.Uid().c_str());
 #endif
         }
-        m_sampleCount += trainingSampleCount;
+        m_totalNumberOfSamplesSeen += trainingSampleCount;
         m_minibatchCount++;
         // TODO: sweep count also needs to be updated.
         return true;
@@ -293,13 +388,13 @@ namespace CNTK
 
     static const std::wstring s_learnerTypeValue = L"Learner";
 
-    /*virtual*/ Dictionary LearnerBase::Serialize() const /*override*/
+    /*virtual*/ Dictionary LearnerBase::CreateCheckpoint() /*override*/
     {
         Dictionary checkpoint;
 
         checkpoint[versionKey] = CurrentVersion();
         checkpoint[typeKey] = s_learnerTypeValue;
-        checkpoint[sampleCountKey] = m_sampleCount;
+        checkpoint[sampleCountKey] = m_totalNumberOfSamplesSeen;
         checkpoint[minibatchCountKey] = m_minibatchCount;
         checkpoint[learningRateScheduleKey] = m_learningRateSchedule.Serialize();
 
@@ -329,7 +424,7 @@ namespace CNTK
 
         ValidateDictionary<LearnerBase>(checkpoint, s_requiredDictionaryKeys, s_learnerTypeValue, CurrentVersion());
 
-        m_sampleCount = checkpoint[sampleCountKey].Value<size_t>();
+        m_totalNumberOfSamplesSeen = checkpoint[sampleCountKey].Value<size_t>();
         m_minibatchCount = checkpoint[minibatchCountKey].Value<size_t>();
         // TODO: which learning rate schedule should take precedence here? 
         // The one given at construction time or the one loaded from a checkpoint?

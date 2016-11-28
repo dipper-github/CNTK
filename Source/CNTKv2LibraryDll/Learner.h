@@ -17,9 +17,9 @@ namespace CNTK
     class LearnerBase : public Learner
     {
     public:
-        virtual bool Update(const std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount) override final;
+        virtual bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount) override final;
 
-        virtual Dictionary Serialize() const override final;
+        virtual Dictionary CreateCheckpoint() override final;
 
         virtual size_t CurrentVersion() const override final { return s_serializationVersion; }
 
@@ -32,10 +32,10 @@ namespace CNTK
         // in the base class constructor (in which case they are allocated with the shapes identical to the shapes of
         // the corresponding parameters) or if the allocation should be deferred to the subclass constructor (which
         // performs allocation that is specific to the particular learner, see FSAdaGrad and RMSProp).
-        LearnerBase(const std::vector<Parameter>& parameters, 
-                    const LearningRateSchedule& learningRateSchedule,
-                    AdditionalLearningOptions additionalOptions,
-                    bool allocateSmoothGradients = true);
+        LearnerBase(const std::vector<Parameter>& parameters,
+            const LearningRateSchedule& learningRateSchedule,
+            AdditionalLearningOptions additionalOptions,
+            bool allocateSmoothGradients = true);
 
         virtual void Update(const Parameter& parameter, const NDArrayViewPtr& gradientValue, const NDArrayViewPtr& smoothedGradientValue, size_t trainingSampleCount) const = 0;
 
@@ -185,7 +185,6 @@ namespace CNTK
     class LearnerAdaGrad : public LearnerBase
     {
     public:
-
         LearnerAdaGrad(const std::vector<Parameter>& parameters,
                        const LearningRateSchedule& learningRateSchedule,
                        bool needAveMultiplier,
@@ -253,5 +252,47 @@ namespace CNTK
 
         template <typename ElementType>
         void Update(const Parameter& parameter, const NDArrayViewPtr& gradientValue, const NDArrayViewPtr& smoothedGradientValue, size_t trainingSampleCount) const;
+    };
+
+    // Helper class to manage a collection of learners.
+    class Learners
+    {
+    public:
+        explicit Learners(const std::vector<LearnerPtr>& learners);
+
+        bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount);
+        bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, MinibatchInfo& minibatchInfo);
+
+        Dictionary CreateCheckpoint();
+
+        void RestoreFromCheckpoint(const Dictionary&);
+
+        const std::vector<LearnerPtr>& ParameterLearners() const
+        {
+            return m_learners;
+        }
+
+        std::unordered_set<Parameter> GetParameters() const
+        {
+            std::unordered_set<Parameter> result;
+            for (auto l : m_learners)
+            {
+                const auto& p = l->Parameters();
+                result.insert(p.begin(), p.end());
+            }
+            return result;
+        }
+
+        bool IsDistributed() const
+        {
+            return m_isDistributed;
+        }
+
+    private:
+        void GetLearnerGradients(LearnerPtr learner, const std::unordered_map<Parameter, NDArrayViewPtr>& allGradients, std::unordered_map<Parameter, NDArrayViewPtr>& learnerGradients);
+        void CheckDistributedLearners();
+
+        std::vector<LearnerPtr> m_learners;
+        bool m_isDistributed;
     };
 }
