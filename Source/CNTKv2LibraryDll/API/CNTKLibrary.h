@@ -1704,6 +1704,7 @@ namespace CNTK
 
     protected:
         CNTK_API NDArrayViewPtr Value() const;
+        CNTK_API void SetValue(const NDArrayViewPtr& value);
 
     private:
 #ifdef SWIG
@@ -1996,6 +1997,16 @@ private:
         NDArrayViewPtr Value() const
         {
             return Variable::Value();
+        }
+
+        ///
+        /// Copies the contents of the 'value' NDArrayView into the view backing 'this' 
+        /// parameter's value. The shapes of both views must be identical.
+        ///
+        void SetValue(const NDArrayViewPtr& value)
+        {
+            Variable::SetValue(value);
+            RecordValueUpdate();
         }
 
         size_t CurrentValueTimeStamp() const { return m_dataFields->m_valueTimeStamp.load(); }
@@ -2375,9 +2386,9 @@ namespace CNTK
         CNTK_API FunctionPtr ReplacePlaceholder(const Variable& placeholderReplacement);
 
         ///
-        /// Save this function graph into a model file
+        /// Save this function graph into a model file.
         ///
-        CNTK_API void SaveModel(const std::wstring& modelFile, bool useLegacyModelFormat = true);
+        CNTK_API void SaveModel(const std::wstring& modelFile);
 
         ///
         /// Restore the models parameters (in-place) from a model file
@@ -3338,7 +3349,7 @@ namespace CNTK
         ///
         /// Checkpoint the model and other Trainer state at the specified file location
         ///
-        CNTK_API void SaveCheckpoint(const std::wstring& filePath, bool usingLegacyModelFormat = true);
+        CNTK_API void SaveCheckpoint(const std::wstring& filePath);
 
         ///
         /// Restore the model and trainer state from a previously saved model and checkpoint from the specified file location
@@ -3383,7 +3394,7 @@ namespace CNTK
         CNTK_API ~Trainer();
 
     private:
-        void Save(const std::wstring& modelFilePath, bool usingLegacyModelFormat, const Dictionary& state);
+        void Save(const std::wstring& modelFilePath, const Dictionary& state);
         bool UpdateLearners(const std::unordered_map<Parameter, NDArrayViewPtr>& gradients);
         bool HandleEmptyMinibatch(bool atEndOfData);
 
