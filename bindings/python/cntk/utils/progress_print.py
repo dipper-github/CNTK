@@ -3,7 +3,8 @@
 # Licensed under the MIT license. See LICENSE.md file in the project root
 # for full license information.
 # ==============================================================================
-from time import time
+import time
+import sys
 
 # TODO: Let's switch to import logging in the future instead of print. [ebarsoum]
 class ProgressPrinter:
@@ -36,11 +37,13 @@ class ProgressPrinter:
         self.first               = first
         self.tag                 = '' if not tag else "[{}] ".format(tag)
         self.epoch_start_time    = 0
+        self.progress_timer_time = 0
+        self.minibatch_num = 0
 
         if freq==0:
-            print(' average      since    average      since      examples')
-            print('    loss       last     metric       last              ')
-            print(' ------------------------------------------------------')
+            sys.stderr.write(' average      since    average      since      examples\n')
+            sys.stderr.write('    loss       last     metric       last              \n')
+            sys.stderr.write(' ------------------------------------------------------\n')
 
     def avg_loss_since_start(self):
         '''
@@ -102,17 +105,32 @@ class ProgressPrinter:
         if self.freq > 0:
             self.updates = 0
             avg_loss, avg_metric, samples = self.reset_start()
-            epoch_end_time = time()
+            epoch_end_time = time.time()
             time_delta = epoch_end_time - self.epoch_start_time
             speed = 0
             if (time_delta > 0):
                 speed = samples / time_delta
                 self.epoch_start_time = epoch_end_time
             if with_metric:
-                print("Finished Epoch [{}]: {}loss = {:0.6f} * {}, metric = {:0.1f}% * {} {:0.3f}s ({:5.1f} samples per second)".format(self.epochs, self.tag, avg_loss, samples, avg_metric*100.0, samples, time_delta, speed))
+                sys.stderr.write("Finished Epoch [{}]: {}loss = {:0.6f} * {}, metric = {:0.1f}% * {} {:0.3f}s ({:5.1f} samples per second)\n".format(self.epochs, self.tag, avg_loss, samples, avg_metric*100.0, samples, time_delta, speed))
             else:
-                print("Finished Epoch [{}]: {}loss = {:0.6f} * {} {:0.3f}s ({:5.1f} samples per second)".format(self.epochs, self.tag, avg_loss, samples, time_delta, speed))
+                sys.stderr.write("Finished Epoch [{}]: {}loss = {:0.6f} * {} {:0.3f}s ({:5.1f} samples per second)\n".format(self.epochs, self.tag, avg_loss, samples, time_delta, speed))
             return avg_loss, avg_metric, samples  # BUGBUG: for freq=0, we don't return anything here
+
+    def ___gererate_progress_heartbeat(self):
+        '''
+        Private methed. Every num_mbs_to_show_result, based on minibatch_num print sumarary of the minibatch and heartbeat info.
+
+        Args:
+            num_mbs_to_show_result (`int`): after how many minibatches in modulo, a printout is desired.
+        '''
+        timer_delta = time.time() - self.progress_timer_time
+        
+        # print progress no sooner than 10s apart
+        if timer_delta > 10:
+            # print to stdout
+            print("PROGRESS: 0.00%")
+            self.progress_timer_time = time.time()
 
     def update(self, loss, minibatch_size, metric=None):
         '''
@@ -129,33 +147,40 @@ class ProgressPrinter:
         self.samples_since_last  += minibatch_size
         self.loss_since_start    += loss * minibatch_size
         self.loss_since_last     += loss * minibatch_size
+
         if metric is not None:
             self.metric_since_start += metric * minibatch_size
             self.metric_since_last  += metric * minibatch_size
+
         if self.epoch_start_time == 0:
-            self.epoch_start_time = time()
+            self.epoch_start_time = time.time()
+
+        self.___gererate_progress_heartbeat()
+
         if self.freq == 0 and (self.updates+1) & self.updates == 0:
             avg_loss, avg_metric, samples = self.reset_last()
             if metric is not None:
-                print(' {:8.3g}   {:8.3g}   {:8.3g}   {:8.3g}    {:10d}'.format(
+                sys.stderr.write(' {:8.3g}   {:8.3g}   {:8.3g}   {:8.3g}    {:10d}\n'.format(
                     self.avg_loss_since_start(), avg_loss,
                     self.avg_metric_since_start(), avg_metric,
                     self.samples_since_start))
             else:
-                print(' {:8.3g}   {:8.3g}   {:8s}   {:8s}    {:10d}'.format(
+                sys.stderr.write(' {:8.3g}   {:8.3g}   {:8s}   {:8s}    {:10d}\n'.format(
                     self.avg_loss_since_start(), avg_loss,
                     '', '', self.samples_since_start))
         elif self.freq > 0 and (self.updates % self.freq == 0 or self.updates <= self.first):
             avg_loss, avg_metric, samples = self.reset_last()
+
             if self.updates <= self.first: # printing individual MBs
                 first_mb = self.updates
             else:
                 first_mb = max(self.updates - self.freq + 1, self.first+1)
+
             if metric is not None:
-                print(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d}, metric = {:0.1f}% * {:d}'.format(
+                sys.stderr.write(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d}, metric = {:0.1f}% * {:d}\n'.format(
                     first_mb, self.updates, avg_loss, samples, avg_metric*100.0, samples))
             else:
-                print(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d}'.format(
+                sys.stderr.write(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d}\n'.format(
                     first_mb, self.updates, avg_loss, samples))
 
     def update_with_trainer(self, trainer, with_metric=False):
@@ -167,7 +192,10 @@ class ProgressPrinter:
             trainer (:class:`cntk.trainer.Trainer`): trainer from which information is gathered
             with_metric (`bool`): whether to update the metric accumulators
         '''
-        self.update(trainer.previous_minibatch_loss_average,trainer.previous_minibatch_sample_count, trainer.previous_minibatch_evaluation_average if with_metric else None)
+        self.update(
+            trainer.previous_minibatch_loss_average,
+            trainer.previous_minibatch_sample_count, 
+            trainer.previous_minibatch_evaluation_average if with_metric else None)
 
         
 # print the total number of parameters to log
