@@ -83,6 +83,13 @@
 %apply float INPUT[]  { float *dataBuffer }
 %apply double INPUT[]  { double *dataBuffer }
 
+%typemap(cscode) CSharpBinding %{
+    public static Function Combine(List<Variable> operands, string name = null) {
+        var varVect = new VariableVector(operands);
+        return Combine(varVect, name);
+    }
+%}
+
 %rename (GetAllDevices) CNTK::DeviceDescriptor::AllDevices;
 %rename (GetBestDevice) CNTK::DeviceDescriptor::BestDevice;
 %rename (GetDefaultDevice) CNTK::DeviceDescriptor::DefaultDevice;
@@ -192,6 +199,7 @@
 %rename (GetDimensions) CNTK::NDShape::Dimensions;
 %rename (GetRank) CNTK::NDShape::Rank;
 %rename (GetTotalSize) CNTK::NDShape::TotalSize;
+%rename (AreEqualShape) operator==(const NDShape& first, const NDShape& second);
 
 %typemap(cscode) CNTK::NDShape %{
     public uint Rank
@@ -221,6 +229,67 @@
     {
         get { return GetDimensionSize((uint)key); }
     }
+
+    public override bool Equals(System.Object obj)
+    {
+        // If parameter is null return false.
+        if (obj == null)
+        {
+            return false;
+        }
+
+        // If parameter cannot be cast to Point return false.
+        NDShape p = obj as NDShape;
+        if ((System.Object)p == null)
+        {
+            return false;
+        }
+
+        // Return true if the fields match:
+        return CSharpBindings.AreEqualShape(this, p);
+    }
+
+    public bool Equals(NDShape p)
+    {
+        // If parameter is null return false:
+        if ((object)p == null)
+        {
+            return false;
+        }
+
+        // Return true if the fields match:
+        return CSharpBindings.AreEqualShape(this, p);
+    }
+
+    public static bool operator ==(NDShape first, NDShape second)
+    {
+        // If both are null, or both are same instance, return true.
+        if (System.Object.ReferenceEquals(first, second))
+        {
+            return true;
+        }
+
+        // If one is null, but not both, return false.
+        if (((object)first == null) || ((object)second == null))
+        {
+            return false;
+        }
+
+        // Return true if the fields match:
+        return CSharpBindings.AreEqualShape(first, second);
+    }
+
+    public static bool operator !=(NDShape first, NDShape second)
+    {
+        return !(first == second);
+    }
+
+    public override int GetHashCode()
+    {
+        //Todo: another hash function??
+        return this.GetDimensions().GetHashCode();
+    }
+
 %}
 
 %typemap(cscode) CNTK::Value %{
