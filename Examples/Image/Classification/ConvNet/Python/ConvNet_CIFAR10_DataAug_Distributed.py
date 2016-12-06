@@ -11,7 +11,7 @@ from cntk.utils import *
 from cntk.layers import *
 from cntk.models import Sequential, LayerStack
 from cntk.ops import input_variable, cross_entropy_with_softmax, classification_error, relu, element_times, constant
-from cntk.io import MinibatchSource, ImageDeserializer, StreamDef, StreamDefs, INFINITE_SAMPLES
+from cntk.io import MinibatchSource, ImageDeserializer, StreamDef, StreamDefs, INFINITE_SAMPLES, FULL_DATA_SWEEP
 from cntk import Trainer, cntk_py, distributed
 from cntk.learner import momentum_sgd, learning_rate_schedule, momentum_schedule, momentum_as_time_constant_schedule, UnitType
 from _cntk_py import set_computation_network_trace_level
