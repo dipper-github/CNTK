@@ -83,6 +83,56 @@
 %apply float INPUT[]  { float *dataBuffer }
 %apply double INPUT[]  { double *dataBuffer }
 
+%rename (GetAllDevices) CNTK::DeviceDescriptor::AllDevices;
+%rename (GetBestDevice) CNTK::DeviceDescriptor::BestDevice;
+%rename (GetDefaultDevice) CNTK::DeviceDescriptor::DefaultDevice;
+%rename (GetCPUDevice) CNTK::DeviceDescriptor::CPUDevice;
+%rename (GetDeviceType) CNTK::DeviceDescriptor::Type;
+// %rename (GetId) CNTK::DeviceDescriptor::Id;
+
+%typemap(cscode) CNTK::DeviceDescriptor %{
+
+// Todo: why mapped to uint??
+//    public int Id
+//    {
+//        get { return GetId(); }
+//    }
+
+    public DeviceKind Type
+    {
+        get { return GetDeviceType(); }
+    }
+
+    public static DeviceDescriptor CPUDevice
+    {
+        get { return GetCPUDevice(); }
+    }
+
+    public static DeviceDescriptor DefaultDevice
+    {
+        get { return GetDefaultDevice(); }
+    }
+
+    public static DeviceDescriptor BestDevice
+    {
+        get { return GetBestDevice(); }
+    }
+
+    public static System.Collections.Generic.List<DeviceDescriptor> AllDevices
+    {
+        get {
+            var devices = GetAllDevices();
+            var ret = new System.Collections.Generic.List<DeviceDescriptor>(devices.Count);
+            foreach (var d in devices)
+            {
+                ret.Add(d);
+            }
+            return ret;
+        }
+    }
+%}
+
+
 %rename (GetOutput) CNTK::Function::Output;
 %rename (GetOutputs) CNTK::Function::Outputs;
 %rename (GetArguments) CNTK::Function::Arguments;

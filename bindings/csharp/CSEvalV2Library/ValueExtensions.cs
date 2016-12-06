@@ -62,11 +62,11 @@ namespace CNTK
             T[] outputData = new T[numOfOutputData];
             if (value.GetDataType() == DataType.Float)
             {
-                cpuOutputNDArrayView = new NDArrayView(outputNDArrayView.Shape(), outputData as float[], numOfOutputData, DeviceDescriptor.CPUDevice());
+                cpuOutputNDArrayView = new NDArrayView(outputNDArrayView.Shape(), outputData as float[], numOfOutputData, DeviceDescriptor.CPUDevice);
             }
             else if (value.GetDataType() == DataType.Double)
             {
-                cpuOutputNDArrayView = new NDArrayView(outputNDArrayView.Shape(), outputData as double[], numOfOutputData, DeviceDescriptor.CPUDevice());
+                cpuOutputNDArrayView = new NDArrayView(outputNDArrayView.Shape(), outputData as double[], numOfOutputData, DeviceDescriptor.CPUDevice);
             }
             else
             {

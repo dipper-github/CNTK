@@ -75,7 +75,7 @@ namespace CSEvalV2Example
             // Create input map
             var inputMap = new Dictionary<string, Value>();
             // void Create<T>(Shape shape, List<List<T>> data, DeviceDescriptor computeDevice)
-            inputMap.Add(inputVar.Name, Value.Create<float>(inputVar.Shape, inputData, DeviceDescriptor.CPUDevice()));
+            inputMap.Add(inputVar.Name, Value.Create<float>(inputVar.Shape, inputData, DeviceDescriptor.CPUDevice));
 
             // Create ouput map. Using null as Value to indicate using system allocated memory.
             var outputMap = new Dictionary<string, Value>();
@@ -83,7 +83,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice());
+            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             // The buffer for storing output for this batch
             var outputData = new List<List<float>>();
@@ -144,7 +144,7 @@ namespace CSEvalV2Example
             // Todo: create value directly from data.
             var dynamicAxisShape = new global::SizeTVector() { 1, numOfSamples };
             var inputShape = inputVar.Shape.AppendShape(new NDShape(dynamicAxisShape));
-            var inputNDArrayView = new NDArrayView(inputShape, inputData, numOfInputData, DeviceDescriptor.CPUDevice());
+            var inputNDArrayView = new NDArrayView(inputShape, inputData, numOfInputData, DeviceDescriptor.CPUDevice);
             var inputValue = new Value(inputNDArrayView);
 
             // Create input map
@@ -165,7 +165,7 @@ namespace CSEvalV2Example
             {
                 outputData[i] = (float)0.0;
             }
-            var outputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice());
+            var outputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice);
             var outputValue = new Value(outputNDArrayView);
 
             // Create ouput map
@@ -174,7 +174,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice());
+            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             // Output results
             Console.WriteLine("Evaluation results:");
@@ -208,7 +208,7 @@ namespace CSEvalV2Example
             // Todo: create value directly from data.
             var dynamicAxisShape = new global::SizeTVector() { 1, numOfSamples };
             var inputShape = inputVar.Shape.AppendShape(new NDShape(dynamicAxisShape));
-            var inputNDArrayView = new NDArrayView(inputShape, inputData, numOfInputData, DeviceDescriptor.CPUDevice());
+            var inputNDArrayView = new NDArrayView(inputShape, inputData, numOfInputData, DeviceDescriptor.CPUDevice);
             var inputValue = new Value(inputNDArrayView);
 
             // Create input map
@@ -228,7 +228,7 @@ namespace CSEvalV2Example
             {
                 outputData[i] = (float)0.0;
             }
-            var outputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice());
+            var outputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice);
             var outputValue = new Value(outputNDArrayView);
 
             // Create ouput map
@@ -237,7 +237,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice());
+            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             // Output results
             Console.WriteLine("Evaluation results:");
@@ -271,7 +271,7 @@ namespace CSEvalV2Example
             // Todo: create value directly from data.
             var dynamicAxisShape = new global::SizeTVector() { 1, numOfSamples };
             var inputShape = inputVar.Shape.AppendShape(new NDShape(dynamicAxisShape));
-            var inputNDArrayView = new NDArrayView(inputShape, inputData, numOfInputData, DeviceDescriptor.CPUDevice());
+            var inputNDArrayView = new NDArrayView(inputShape, inputData, numOfInputData, DeviceDescriptor.CPUDevice);
             var inputValue = new Value(inputNDArrayView);
 
             // Create input map
@@ -288,7 +288,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice());
+            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             // Get output value after evaluation
             var outputValue = outputMap[outputVar];
@@ -299,7 +299,7 @@ namespace CSEvalV2Example
             // Todo: directly access the data in output buffer if it is on CPU?
             uint numOfOutputData = outputNDArrayView.Shape().TotalSize;
             float[] outputData = new float[numOfOutputData];
-            var cpuOutputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice());
+            var cpuOutputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice);
             cpuOutputNDArrayView.CopyFrom(outputNDArrayView);
 
             // Output results
@@ -334,7 +334,7 @@ namespace CSEvalV2Example
             var inputVector = new FloatVector(inputData); 
             var data = new FloatVectorVector() {inputVector};
             // Create value directly from data.
-            var inputValue = Value.CreateDenseFloat(inputVar.Shape, data, DeviceDescriptor.CPUDevice());
+            var inputValue = Value.CreateDenseFloat(inputVar.Shape, data, DeviceDescriptor.CPUDevice);
 
             // Create input map
             // Todo: create a Dictionary wrapper?
@@ -351,7 +351,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice());
+            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             // Get output value after evaluation
             var outputValue = outputMap[outputVar];
@@ -364,7 +364,7 @@ namespace CSEvalV2Example
             // Todo: directly access the data in output buffer if it is on CPU?
             uint numOfOutputData = outputNDArrayView.Shape().TotalSize;
             float[] outputData = new float[numOfOutputData];
-            var cpuOutputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice());
+            var cpuOutputNDArrayView = new NDArrayView(outputShape, outputData, numOfOutputData, DeviceDescriptor.CPUDevice);
             cpuOutputNDArrayView.CopyFrom(outputNDArrayView);
 
             // Output results
@@ -381,7 +381,7 @@ namespace CSEvalV2Example
             // Load the model
             var model = new CNTK.Evaluation();
 
-            model.LoadModel("z.model", DeviceDescriptor.CPUDevice());
+            model.LoadModel("z.model", DeviceDescriptor.CPUDevice);
 
             // prepare input for evaluation
             int numOfSamples = 1;
@@ -396,7 +396,7 @@ namespace CSEvalV2Example
                 inputData[0].Add(i % 255);
             }
 
-            var inputValue = model.CreateValue<float>(inputNodeName, inputData, DeviceDescriptor.CPUDevice());
+            var inputValue = model.CreateValue<float>(inputNodeName, inputData, DeviceDescriptor.CPUDevice);
 
             // Create input map
             // Todo: create a Dictionary wrapper?
@@ -410,7 +410,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            model.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice());
+            model.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             var output = new List<List<float>>();
             var outputDims = model.GetOutputSizes();
