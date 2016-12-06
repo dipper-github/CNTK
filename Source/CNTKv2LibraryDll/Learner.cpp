@@ -49,7 +49,8 @@ namespace CNTK
             }
         }
 
-        CheckDistributedLearners();
+        if (m_isDistributed)
+            CheckDistributedLearners();
     }
 
     void Learners::CheckDistributedLearners()
