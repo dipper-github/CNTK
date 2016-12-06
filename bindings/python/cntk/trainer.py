@@ -7,6 +7,7 @@
 from . import cntk_py
 from .device import use_default_device
 from .utils import sanitize_var_map, sanitize_function, typemap, value_to_seq
+from .io import _py_dict_to_cntk_dict
 
 __doc__= '''\
 A trainer encapsulates the overall training process and employs one or more
@@ -132,7 +133,7 @@ class Trainer(cntk_py.Trainer):
             filename (str): filename to store the checkpoint.
         '''
 
-        super(Trainer, self).save_checkpoint(filename, external_state)
+        super(Trainer, self).save_checkpoint(filename, _py_dict_to_cntk_dict(external_state))
 
     def restore_from_checkpoint(self, filename):
         '''
