@@ -8,6 +8,11 @@ namespace CNTK
 {
     public static class ValueExtensions
     {
+        public static void CopyTo<T>(this Value value, string name, List<List<T>> data)
+        {
+            throw new NotImplementedException("Not implemented");
+        }
+
         // The value represents a n-dimensional tensor with 2 dynamic axes: sequence and batch
         // It assumes that only the highest 2 axes are dynamic, and all the other axes are static. 
         public static void CopyTo<T>(this Value value, Variable variable, List<List<T>> data)
@@ -99,7 +104,7 @@ namespace CNTK
         }
 
         // The value represents a n-dimensional tensor with 2 dynamic axes: sequence and batch
-        public static void CopyTo<T>(List<List<T>> data, Variable variable, List<List<long>> indexes, List<List<long>> nnzCounts)
+        public static void CopyTo<T>(this Value value, Variable variable, List<List<T>> data, List<List<long>> indexes, List<List<long>> nnzCounts)
         {
             throw new NotImplementedException("Not implemented");
         }

@@ -173,9 +173,14 @@
     }
 
     // Todo: do we have a better place to put this function?
-    public static Function Combine(System.Collections.Generic.List<Variable> outputVariable)
+    public static Function Combine(System.Collections.Generic.IEnumerable<Variable> outputVariable)
     {
-        return CSharpBindings.Combine(new VariableVector(outputVariable));
+        var varVect = new VariableVector();
+        foreach (var v in outputVariable)
+        {
+            varVect.Add(v);
+        }
+        return CSharpBindings.Combine(varVect);        
     }
 %}
 
@@ -331,7 +336,7 @@
         }
     }
 
-    public static Value Create<T>(NDShape shape, System.Collections.Generic.List<System.Collections.Generic.List<long>> oneHotIndex, DeviceDescriptor computeDevice)
+    public static Value Create<T>(long vacabSize, System.Collections.Generic.List<System.Collections.Generic.List<long>> oneHotIndex, DeviceDescriptor computeDevice)
     {
         throw new System.NotImplementedException("Not implemented");
     }
@@ -415,6 +420,7 @@
     {
         self->Forward(arguments, outputs, computeDevice, {});
     }
+
 }
 
 
