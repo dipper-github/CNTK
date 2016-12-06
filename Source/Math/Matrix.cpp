@@ -4544,18 +4544,16 @@ void Matrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha, const Matrix<ElemT
                 }
                 else if (c.GetMatrixType() == MatrixType::SPARSE) // CPU, DENSE * SPARSE -> SPARSE
                 {
-                    if (beta != 0)
+                    if (beta != 0 || beta != 1)
                     {
-                        // sparseMul = alpha * op( a ) * op( b )
-                        CPUSparseMatrix<ElemType> sparseMul(MatrixFormat::matrixFormatSparseBlockCol);
-                        // NOTE there's a bug that MultiplyAndAdd does not add (old value is discarded), so it only works when old is zero
-                        CPUSparseMatrix<ElemType>::MultiplyAndAdd(alpha, *a.m_CPUMatrix, transposeA, *b.m_CPUSparseMatrix, transposeB, sparseMul);
-                        // c = beta * c + sparseMul
-                        CPUSparseMatrix<ElemType>::ScaleAndAccumulate(beta, *c.m_CPUSparseMatrix, 1, sparseMul);
+                        NOT_IMPLEMENTED;
                     }
                     else
                     {
-                        c.Resize(c.GetNumRows(), c.GetNumCols(), 0);
+                        if (beta == 0)
+                        {
+                            c.Resize(c.GetNumRows(), c.GetNumCols(), 0);
+                        }
                         CPUSparseMatrix<ElemType>::MultiplyAndAdd(alpha, *a.m_CPUMatrix, transposeA, *b.m_CPUSparseMatrix, transposeB, *c.m_CPUSparseMatrix);
                     }
                     c.SetDataLocation(CPU, SPARSE);
@@ -4591,28 +4589,16 @@ void Matrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha, const Matrix<ElemT
         }
         else if (a.m_matrixType == MatrixType::DENSE && b.m_matrixType == MatrixType::SPARSE && c.m_matrixType == MatrixType::SPARSE) // GPU, DENSE * SPARSE -> SPARSE
         {
-            if (beta != 0)
+            if (beta != 0 && beta != 1)
             {
-                // sparseMul = alpha * op( a ) * op( b )
-                GPUSparseMatrix<ElemType> sparseMulGPU(b.GetDeviceId(), MatrixFormat::matrixFormatSparseBlockCol);
-                GPUSparseMatrix<ElemType>::MultiplyAndAdd(alpha, *a.m_GPUMatrix, transposeA, *b.m_GPUSparseMatrix, transposeB, sparseMulGPU);
-
-                // copy from GPU to CPU
-                CPUSparseMatrix<ElemType> cCPU(MatrixFormat::matrixFormatSparseBlockCol);
-                (*c.m_GPUSparseMatrix).CopyToCPUSparseMatrix(cCPU);
-
-                CPUSparseMatrix<ElemType> sparseMulCPU(MatrixFormat::matrixFormatSparseBlockCol);
-                sparseMulGPU.CopyToCPUSparseMatrix(sparseMulCPU);
-
-                // c = beta * c + sparseMul
-                CPUSparseMatrix<ElemType>::ScaleAndAccumulate(beta, cCPU, 1, sparseMulCPU);
-
-                // copy back to GPU
-                (*c.m_GPUSparseMatrix).SetValue(cCPU);
+                NOT_IMPLEMENTED;
             }
             else
             {
-                c.Resize(c.GetNumRows(), c.GetNumCols(), 0);
+                if (beta == 0)
+                {
+                    c.Resize(c.GetNumRows(), c.GetNumCols(), 0);
+                }
                 GPUSparseMatrix<ElemType>::MultiplyAndAdd(alpha, *a.m_GPUMatrix, transposeA, *b.m_GPUSparseMatrix, transposeB, *c.m_GPUSparseMatrix);
             }
             c.SetDataLocation(GPU, SPARSE);

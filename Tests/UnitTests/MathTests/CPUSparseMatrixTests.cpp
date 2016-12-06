@@ -61,8 +61,7 @@ BOOST_FIXTURE_TEST_CASE(CPUSparseMatrixCopyColumnSliceToDense, RandomSeedFixture
     BOOST_CHECK(dm1.IsEqualTo(dm2, c_epsilonFloatE4));
 }
 
-#if 0 // this test is covered by GPUMatrixSuite/MatrixSparseTimesDense
-BOOST_FIXTURE_TEST_CASE(CPUSparseMatrixAdd, RandomSeedFixture)
+BOOST_FIXTURE_TEST_CASE(CPUSparseMatrixMultiplyAndAdd, RandomSeedFixture)
 {
     const size_t m = 100;
     const size_t n = 50;
@@ -97,55 +96,26 @@ BOOST_FIXTURE_TEST_CASE(CPUSparseMatrixAdd, RandomSeedFixture)
     }
 
     // generate SparseBlockCol matrix
+    DenseMatrix dmMul(m, m);
+    DenseMatrix::MultiplyAndAdd(dm0, false, dm1, true, dmMul);
 
     SparseMatrix smMul(MatrixFormat::matrixFormatSparseBlockCol, m, m, 0);
     SparseMatrix::MultiplyAndAdd(1, dm0, false, sm1, true, smMul);
 
-    DenseMatrix dmMul(m, m);
-    DenseMatrix::MultiplyAndAdd(dm0, false, dm1, true, dmMul);
     foreach_coord(row, col, dmMul)
     {
         BOOST_CHECK(smMul(row, col) == dmMul(row, col));
     }
 
-    SparseMatrix smMul2(MatrixFormat::matrixFormatSparseBlockCol, m, m, 0);
-    SparseMatrix::MultiplyAndAdd(1, dm0, false, sm2, true, smMul2);
+    SparseMatrix::MultiplyAndAdd(1, dm0, false, sm2, true, smMul);
+    DenseMatrix::MultiplyAndAdd(dm0, false, dm2, true, dmMul);
 
-    DenseMatrix dmMul2(m, m);
-    DenseMatrix::MultiplyAndAdd(dm0, false, dm2, true, dmMul2);
-    foreach_coord(row, col, dmMul2)
+    foreach_coord(row, col, dmMul)
     {
-        BOOST_CHECK(smMul2(row, col) == dmMul2(row, col));
-    }
-
-    // test sparse add
-    dmMul2 = (dmMul2 * 0.9) + dmMul;
-    SparseMatrix::ScaleAndAccumulate(0.9, smMul2, smMul);
-
-    foreach_coord(row, col, dmMul2)
-    {
-        BOOST_CHECK(smMul2(row, col) == dmMul2(row, col));
-    }
-
-    DenseMatrix dm3(m, n);
-    dm3.SetUniformRandomValue(-300, 1, IncrementCounter());
-    dm3.SetToZeroIfAbsLessThan(0);
-
-    DenseMatrix dm4(m, m);
-    DenseMatrix::Multiply(dm3, false, dm1, true, dm4);
-
-    SparseMatrix sm4(MatrixFormat::matrixFormatSparseBlockCol);
-    SparseMatrix::MultiplyAndAdd(1, dm3, false, sm1, true, sm4);
-
-    dmMul2 = (dmMul2 * 0.9) + dm4;
-    SparseMatrix::ScaleAndAccumulate(0.9, smMul2, sm4);
-
-    foreach_coord(row, col, dmMul2)
-    {
-        BOOST_CHECK(smMul2(row, col) == dmMul2(row, col));
+        BOOST_CHECK(smMul(row, col) == dmMul(row, col));
     }
 }
-#endif
+
 BOOST_AUTO_TEST_SUITE_END()
 }
 } } }

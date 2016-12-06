@@ -974,8 +974,6 @@ void CPUSparseMatrix<ElemType>::MultiplyAndAdd(ElemType alpha, const CPUMatrix<E
         InvalidArgument("CPUSparseMatrix::MultiplyAndAdd: The inner dimensions of a (= %lu) and b (= %lu) don't match.", k, l);
     }
 
-    c.Reset();
-
     if (!transposeA && !transposeB)
     {
         NOT_IMPLEMENTED;
@@ -987,53 +985,55 @@ void CPUSparseMatrix<ElemType>::MultiplyAndAdd(ElemType alpha, const CPUMatrix<E
 
         // allocate enough memory
         c.SetFormat(matrixFormatSparseBlockCol);
+        size_t blockSizePrev = c.GetBlockSize();
 
-        // BUGBUG: original value in c is discarded if reallocate
-        // it cannot be fixed by reserve value because block id map
-        // below only accounts for rhs but not c itself
-        c.RequireSizeAndAllocate(m, n, m * min(n, rhs.NzCount()), true, false);
+        if (blockSizePrev == 0)
+        {
+            c.RequireSizeAndAllocate(m, n, 1, true);
+        }
 
-        map<size_t, size_t> w2Id;
-        for (size_t j = 0; j < rhs.GetNumCols(); j++)
-        { // j ranges over batches
-            size_t start = rhs.SecondaryIndexLocation()[j];
-            size_t end = rhs.SecondaryIndexLocation()[j + 1];
+        map<size_t, size_t> col2BlockId;
+        for (size_t blockId = 0; blockId < blockSizePrev; blockId++)
+        {
+            col2BlockId[c.GetBlockIds()[blockId]] = blockId;
+        }
+
+        size_t blockSizeCurr = blockSizePrev;
+        for (size_t rhsNz = 0; rhsNz < rhs.NzCount(); rhsNz++)
+        {
+            size_t resultCol = rhs.MajorIndexLocation()[rhsNz];
+            if (col2BlockId.find(resultCol) == col2BlockId.end())
+            {
+                col2BlockId[resultCol] = blockSizeCurr;
+                c.GetBlockIds()[blockSizeCurr] = resultCol;
+                blockSizeCurr ++;
+            }
+        }
+
+        if (blockSizeCurr > blockSizePrev)
+        {
+            c.RequireSizeAndAllocate(m, n, m * blockSizeCurr, true, true);
+            c.SetBlockSize(blockSizeCurr);
+            memset(c.Data() + m * blockSizePrev, 0, sizeof(ElemType) * m * (blockSizeCurr - blockSizePrev));
+        }
+
+        for (size_t rhsCol = 0; rhsCol < rhs.GetNumCols(); rhsCol++)
+        {
+            size_t start = rhs.SecondaryIndexLocation()[rhsCol];
+            size_t end = rhs.SecondaryIndexLocation()[rhsCol + 1];
 
             for (size_t p = start; p < end; p++)
             {
-                size_t i = rhs.MajorIndexLocation()[p]; // i ranges over words
-                ElemType val = rhs.Buffer()[p];  // 1 for(i, j)
+                size_t rhsRow = rhs.MajorIndexLocation()[p];
+                ElemType val = rhs.Buffer()[p];
 
-                bool first = true;
-                if (w2Id.find(i) == w2Id.end())
-                {
-                    size_t id = w2Id.size();
-                    w2Id[i] = id;
-                    c.GetBlockIds()[c.GetBlockSize()] = i;
-                    c.SetBlockSize(c.GetBlockSize() + 1);
-                }
-                else
-                {
-                    first = false;
-                }
-                size_t pos = w2Id[i] * lhs.GetNumRows();
-                for (size_t h = 0; h < lhs.GetNumRows(); h++)
+                ElemType* results = c.Buffer() + col2BlockId[rhsRow] * m;
+                #pragma omp parallel for
+                for (int lhsRow = 0; lhsRow < (int)m; lhsRow++)
                 { // h range over hidden layer
-                    if (first == true)
-                    {
-                        c.Buffer()[pos] = alpha * lhs(h, j) * val;
-                    }
-                    else
-                    {
-                        c.Buffer()[pos] += alpha * lhs(h, j) * val;
-                    }
-                    pos++;
+                    results[lhsRow] += alpha * lhs((size_t)lhsRow, rhsCol) * val;
                 }
             }
-        }
-        if (c.GetBlockSize() * m > c.GetSizeAllocated())
-        {
-            LogicError("Sparse matrix is unexpectedly out of range.");
         }
     }
     else if (transposeA && !transposeB)
@@ -1097,121 +1097,6 @@ void CPUSparseMatrix<ElemType>::ScaleAndAdd(const ElemType alpha, const CPUSpars
     else
     {
         RuntimeError("CPUSparseMatrix:: ScaleAndAdd() Not implemented");
-    }
-}
-
-// c = alpha * c + beta * lhs
-template <class ElemType>
-void CPUSparseMatrix<ElemType>::ScaleAndAccumulate(const ElemType alpha, CPUSparseMatrix<ElemType>& c, const ElemType beta, const CPUSparseMatrix<ElemType>& lhs)
-{
-    if (lhs.IsEmpty() || c.IsEmpty())
-    {
-        LogicError("ScaleAndAdd:  one of the input matrix is empty.");
-    }
-
-    if (lhs.GetNumRows() != c.GetNumRows() || lhs.GetNumCols() != c.GetNumCols())
-    {
-        InvalidArgument("CPUSparseMatrix::ScaleAndAdd: The dimensions of a and b must match.");
-    }
-
-    if (lhs.GetFormat() != MatrixFormat::matrixFormatSparseBlockCol || c.GetFormat() != MatrixFormat::matrixFormatSparseBlockCol)
-    {
-        NOT_IMPLEMENTED;
-    }
-
-    if (alpha == 0 || c.GetBlockSize() == 0)
-    {
-        c.SetValue(lhs);
-        return;
-    }
-
-    const size_t NO_STORAGE_ID = SIZE_MAX;
-    std::map<size_t, std::pair<size_t, size_t>> cMap; // block id -> (storage id, lhs storage id)
-    for (size_t i = 0; i < c.GetBlockSize(); i++)
-    {
-        cMap.insert(std::pair<size_t, std::pair<size_t, size_t>>(c.GetBlockIds()[i], std::pair<size_t, size_t>(i, NO_STORAGE_ID)));
-    }
-
-    size_t oldBlockSize = cMap.size();
-
-    size_t blockCount = oldBlockSize;
-    for (size_t i = 0; i < lhs.GetBlockSize(); i++)
-    {
-        size_t blockId = lhs.GetBlockIds()[i];
-        auto iter = cMap.find(blockId);
-        if (iter == cMap.end())
-        {
-            cMap.insert(std::pair<size_t, std::pair<size_t, size_t>>(blockId, std::pair<size_t, size_t>(blockCount++, i)));
-        }
-        else
-        {
-            iter->second.second = i;
-        }
-    }
-
-    //c = c * alpha;
-    ElemType* data = c.GetBlockValuePtr(0);
-    if (alpha != 1)
-    {
-        #pragma omp parallel for
-        for (int i = 0; i < (int)(oldBlockSize * c.GetNumRows()); ++i)
-        {
-            data[i] *= alpha;
-        }
-    }
-
-    if (beta == 0) return; // ====>
-
-    // c += beta * lhs, needs to allocate additional memory
-    size_t newBlockSize = cMap.size();
-    if (newBlockSize > oldBlockSize)
-    {
-        c.RequireSizeAndAllocate(c.GetNumRows(), c.GetNumCols(), newBlockSize * c.GetNumCols(), true, true);
-        c.SetBlockSize(newBlockSize);
-    }
-
-    #pragma omp parallel
-    {
-        size_t ompCount = 0;
-        int ompThread = omp_get_thread_num();
-        int numOmpThreads = omp_get_num_threads();
-        for (const auto& iter : cMap)
-        {
-            if (ompCount++ % numOmpThreads != ompThread) continue;
-
-            size_t blockId = iter.first;
-            size_t cStorageIndex = iter.second.first;
-            size_t lhsStorageIndex = iter.second.second;
-            if (lhsStorageIndex == NO_STORAGE_ID) continue;
-
-            assert(cStorageIndex < newBlockSize);
-
-            const ElemType* pLhs = lhs.GetBlockValuePtr(lhsStorageIndex);
-            ElemType* p = c.GetBlockValuePtr(cStorageIndex);
-
-            if (cStorageIndex < oldBlockSize)
-            {
-                for (size_t row = 0; row < c.GetNumRows(); ++row)
-                {
-                    p[row] += beta * pLhs[row];
-                }
-            }
-            else
-            {
-                if (beta == 1)
-                {
-                    memcpy(p, pLhs, c.GetNumRows() * sizeof(ElemType));
-                }
-                else
-                {
-                    for (size_t row = 0; row < c.GetNumRows(); ++row)
-                    {
-                        p[row] = beta * pLhs[row];
-                    }
-                }
-                c.GetBlockIds()[cStorageIndex] = blockId;
-            }
-        }
     }
 }
 
