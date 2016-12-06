@@ -22,19 +22,19 @@ namespace CSEvalV2Example
         static void EvaluateWithConvenienceMethods()
         {
             // Load the model.
-            Function myFunc = Function.LoadModel("z.model");
+            Function modelFunc = Function.LoadModel("z.model");
 
             const string outputNodeName = "Plus2060_output";
-            // The model has empty node name.
-            // Todo: define the name for the input node, or use SetEvaluationOutput to get related input variables.
-            const string inputNodeName = "";
-            
+            // Todo: how to get a variable in the intermeidate layer by name?
+            Variable outputVar = modelFunc.Outputs.Where(variable => string.Equals(variable.Name, outputNodeName)).FirstOrDefault();
+          
             // Set desired output variables and get required inputVariables;
-            // var inputVariables = new List<Variable>();
-            // SetEvaluationOutput(new List<string>() { outputNodeName }, inputVariables);
-
-            Variable outputVar = myFunc.Outputs.Where(variable => string.Equals(variable.Name, outputNodeName)).FirstOrDefault();
-            Variable inputVar = myFunc.Arguments.Where(variable => string.Equals(variable.Name, inputNodeName)).FirstOrDefault();
+            Function evalFunc = Function.Combine(new List<Variable>() { outputVar });
+            var inputVarList = evalFunc.Arguments;
+            
+            // The model has empty input node name. Fortunatelly there is only one input node for the model.
+            const string inputNodeName = "";
+            Variable inputVar = inputVarList.Where(variable => string.Equals(variable.Name, inputNodeName)).FirstOrDefault();
 
             // Get shape data for the input variable
             NDShape inputShape = inputVar.Shape;
@@ -83,7 +83,7 @@ namespace CSEvalV2Example
 
             // Evalaute
             // Todo: test on GPUDevice()?
-            myFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
+            evalFunc.Evaluate(inputMap, outputMap, DeviceDescriptor.CPUDevice);
 
             // The buffer for storing output for this batch
             var outputData = new List<List<float>>();
@@ -118,7 +118,6 @@ namespace CSEvalV2Example
                 seqNo++;
             }
         }
-
 
         static void EvaluateUsingCSEvalLib()
         {

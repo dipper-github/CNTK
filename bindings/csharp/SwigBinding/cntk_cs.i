@@ -83,13 +83,6 @@
 %apply float INPUT[]  { float *dataBuffer }
 %apply double INPUT[]  { double *dataBuffer }
 
-%typemap(cscode) CSharpBinding %{
-    public static Function Combine(List<Variable> operands, string name = null) {
-        var varVect = new VariableVector(operands);
-        return Combine(varVect, name);
-    }
-%}
-
 %rename (GetAllDevices) CNTK::DeviceDescriptor::AllDevices;
 %rename (GetBestDevice) CNTK::DeviceDescriptor::BestDevice;
 %rename (GetDefaultDevice) CNTK::DeviceDescriptor::DefaultDevice;
@@ -177,6 +170,12 @@
             }
             return ret;
         }
+    }
+
+    // Todo: do we have a better place to put this function?
+    public static Function Combine(System.Collections.Generic.List<Variable> outputVariable)
+    {
+        return CSharpBindings.Combine(new VariableVector(outputVariable));
     }
 %}
 
