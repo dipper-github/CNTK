@@ -296,7 +296,6 @@ namespace CNTK
             return externalState;
         }
 
-        assert(m_distributedLearners.size() == 1);
         m_parameterLearners->RestoreFromCheckpoint(learnerState.Value<Dictionary>());
         DistributedCommunicatorPtr communicator = MPICommunicator();
         communicator->Barrier();
