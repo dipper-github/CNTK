@@ -134,7 +134,7 @@ namespace CNTK
 
     bool Trainer::TrainMinibatch(const std::unordered_map<Variable, ValuePtr>& arguments, std::unordered_map<Variable, ValuePtr>& outputsToFetch, const DeviceDescriptor& computeDevice /*= DeviceDescriptor::UseDefaultDevice()*/)
     {
-        if (m_distributed)
+        if (!m_distributed)
             return TrainLocalMinibatch(arguments, outputsToFetch, computeDevice);
         return TrainDistributedMinibatch(arguments, outputsToFetch, computeDevice);
     }
